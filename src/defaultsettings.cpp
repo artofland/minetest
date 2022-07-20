@@ -86,7 +86,7 @@ void set_default_settings()
 	settings->setDefault("keymap_cmd", "/");
 	settings->setDefault("keymap_cmd_local", ".");
 	settings->setDefault("keymap_minimap", "KEY_KEY_V");
-	settings->setDefault("keymap_console", "KEY_KEY_N");
+	settings->setDefault("keymap_console", "");
 	settings->setDefault("keymap_rangeselect", "KEY_KEY_R");
 	settings->setDefault("keymap_freemove", "KEY_KEY_K");
 	settings->setDefault("keymap_pitchmove", "KEY_KEY_P");
