@@ -9,7 +9,7 @@ endif()
 
 # This can be read from ${PROJECT_NAME} after project() is called
 project(minetest)
-set(PROJECT_NAME_CAPITALIZED "Minetest")
+set(PROJECT_NAME_CAPITALIZED "Artof.Land")
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
@@ -306,7 +306,7 @@ cpack_add_component(Docs
 )
 
 cpack_add_component(SUBGAME_MINETEST_GAME
-	DISPLAY_NAME "Minetest Game"
+	DISPLAY_NAME "Artof.Land"
 	DESCRIPTION "The default game bundled in the Minetest engine. Mainly used as a modding base."
 	GROUP "Games"
 )

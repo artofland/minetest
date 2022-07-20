@@ -18,6 +18,7 @@
 --------------------------------------------------------------------------------
 
 local core_developers = {
+	"Ayrton LECOUTRE Valdenaire (Simerca) <ayrtonpgt@gmail.com>",
 	"Perttu Ahola (celeron55) <celeron55@gmail.com>",
 	"sfan5 <sfan5@live.de>",
 	"Nathanaëlle Courant (Nore/Ekdohibs) <nore@mesecons.net>",
@@ -109,7 +110,7 @@ return {
 		local fs = "image[0.75,0.5;2.2,2.2;" .. core.formspec_escape(logofile) .. "]" ..
 			"style[label_button;border=false]" ..
 			"button[0.5,2;2.5,2;label_button;" .. version.project .. " " .. version.string .. "]" ..
-			"button[0.75,2.75;2,2;homepage;minetest.net]" ..
+			"button[0.75,2.75;2,2;homepage;artof.land]" ..
 			"tablecolumns[color;text]" ..
 			"tableoptions[background=#00000000;highlight=#00000000;border=false]" ..
 			"table[3.5,-0.25;8.5,6.05;list_credits;" ..
@@ -141,7 +142,7 @@ return {
 	end,
 	cbf_button_handler = function(this, fields, name, tabdata)
 		if fields.homepage then
-			core.open_url("https://www.minetest.net")
+			core.open_url("https://artof.land")
 		end
 
 		if fields.share_debug then

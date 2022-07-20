@@ -3149,7 +3149,7 @@ std::string Server::getStatusString()
 	// Version
 	os << "version: " << g_version_string;
 	// Game
-	os << " | game: " << (m_gamespec.title.empty() ? m_gamespec.id : m_gamespec.title);
+	// os << " | game: " << (m_gamespec.title.empty() ? m_gamespec.id : m_gamespec.title);
 	// Uptime
 	os << " | uptime: " << duration_to_string((int) m_uptime_counter->get());
 	// Max lag estimate
