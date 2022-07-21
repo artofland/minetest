@@ -103,7 +103,7 @@ local function get_formspec(tabview, name, tabdata)
 		"button[3,6;2.5,0.75;btn_mp_login;" .. fgettext("Login") .. "]"
 
 	if core.settings:get_bool("enable_split_login_register") then
-		retval = retval .. "button[0.25,6;2.5,0.75;btn_mp_register;" .. fgettext("Register") .. "]"
+		retval = retval .. "button[0.25,6;2.5,0.75;register;" .. fgettext("Register") .. "]"
 	end
 
 	if tabdata.selected then
@@ -270,6 +270,11 @@ local function set_selected_server(tabdata, idx, server)
 end
 
 local function main_button_handler(tabview, fields, name, tabdata)
+	
+	if fields.register then
+		core.open_url("https://artof.land/register")
+	end
+
 	if fields.te_name then
 		gamedata.playername = fields.te_name
 		core.settings:set("name", fields.te_name)
