@@ -9,7 +9,8 @@ endif()
 
 # This can be read from ${PROJECT_NAME} after project() is called
 project(minetest)
-set(PROJECT_NAME_CAPITALIZED "Artof.Land")
+set(PROJECT_NAME "ArtofLand")
+set(PROJECT_NAME_CAPITALIZED "ArtofLand")
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
