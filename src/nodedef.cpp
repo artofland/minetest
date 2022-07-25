@@ -56,12 +56,27 @@ void NodeBox::reset()
 	wall_bottom = aabb3f(-BS/2, -BS/2, -BS/2, BS/2, -BS/2+BS/16., BS/2);
 	wall_side = aabb3f(-BS/2, -BS/2, -BS/2, -BS/2+BS/16., BS/2, BS/2);
 	// no default for other parts
-	connected.reset();
+	connect_top.clear();
+	connect_bottom.clear();
+	connect_front.clear();
+	connect_left.clear();
+	connect_back.clear();
+	connect_right.clear();
+	disconnected_top.clear();
+	disconnected_bottom.clear();
+	disconnected_front.clear();
+	disconnected_left.clear();
+	disconnected_back.clear();
+	disconnected_right.clear();
+	disconnected.clear();
+	disconnected_sides.clear();
 }
 
 void NodeBox::serialize(std::ostream &os, u16 protocol_version) const
 {
-	writeU8(os, 6); // version. Protocol >= 36
+	// Protocol >= 36
+	const u8 version = 6;
+	writeU8(os, version);
 
 	switch (type) {
 	case NODEBOX_LEVELED:
@@ -84,7 +99,7 @@ void NodeBox::serialize(std::ostream &os, u16 protocol_version) const
 		writeV3F32(os, wall_side.MinEdge);
 		writeV3F32(os, wall_side.MaxEdge);
 		break;
-	case NODEBOX_CONNECTED: {
+	case NODEBOX_CONNECTED:
 		writeU8(os, type);
 
 #define WRITEBOX(box) \
@@ -94,25 +109,22 @@ void NodeBox::serialize(std::ostream &os, u16 protocol_version) const
 			writeV3F32(os, i.MaxEdge); \
 		};
 
-		const auto &c = getConnected();
-
 		WRITEBOX(fixed);
-		WRITEBOX(c.connect_top);
-		WRITEBOX(c.connect_bottom);
-		WRITEBOX(c.connect_front);
-		WRITEBOX(c.connect_left);
-		WRITEBOX(c.connect_back);
-		WRITEBOX(c.connect_right);
-		WRITEBOX(c.disconnected_top);
-		WRITEBOX(c.disconnected_bottom);
-		WRITEBOX(c.disconnected_front);
-		WRITEBOX(c.disconnected_left);
-		WRITEBOX(c.disconnected_back);
-		WRITEBOX(c.disconnected_right);
-		WRITEBOX(c.disconnected);
-		WRITEBOX(c.disconnected_sides);
+		WRITEBOX(connect_top);
+		WRITEBOX(connect_bottom);
+		WRITEBOX(connect_front);
+		WRITEBOX(connect_left);
+		WRITEBOX(connect_back);
+		WRITEBOX(connect_right);
+		WRITEBOX(disconnected_top);
+		WRITEBOX(disconnected_bottom);
+		WRITEBOX(disconnected_front);
+		WRITEBOX(disconnected_left);
+		WRITEBOX(disconnected_back);
+		WRITEBOX(disconnected_right);
+		WRITEBOX(disconnected);
+		WRITEBOX(disconnected_sides);
 		break;
-	}
 	default:
 		writeU8(os, type);
 		break;
@@ -121,7 +133,8 @@ void NodeBox::serialize(std::ostream &os, u16 protocol_version) const
 
 void NodeBox::deSerialize(std::istream &is)
 {
-	if (readU8(is) < 6)
+	int version = readU8(is);
+	if (version < 6)
 		throw SerializationError("unsupported NodeBox version");
 
 	reset();
@@ -160,23 +173,21 @@ void NodeBox::deSerialize(std::istream &is)
 
 		u16 count;
 
-		auto &c = getConnected();
-
 		READBOXES(fixed);
-		READBOXES(c.connect_top);
-		READBOXES(c.connect_bottom);
-		READBOXES(c.connect_front);
-		READBOXES(c.connect_left);
-		READBOXES(c.connect_back);
-		READBOXES(c.connect_right);
-		READBOXES(c.disconnected_top);
-		READBOXES(c.disconnected_bottom);
-		READBOXES(c.disconnected_front);
-		READBOXES(c.disconnected_left);
-		READBOXES(c.disconnected_back);
-		READBOXES(c.disconnected_right);
-		READBOXES(c.disconnected);
-		READBOXES(c.disconnected_sides);
+		READBOXES(connect_top);
+		READBOXES(connect_bottom);
+		READBOXES(connect_front);
+		READBOXES(connect_left);
+		READBOXES(connect_back);
+		READBOXES(connect_right);
+		READBOXES(disconnected_top);
+		READBOXES(disconnected_bottom);
+		READBOXES(disconnected_front);
+		READBOXES(disconnected_left);
+		READBOXES(disconnected_back);
+		READBOXES(disconnected_right);
+		READBOXES(disconnected);
+		READBOXES(disconnected_sides);
 	}
 }
 
@@ -246,13 +257,14 @@ void TileDef::serialize(std::ostream &os, u16 protocol_version) const
 		writeU8(os, align_style);
 }
 
-void TileDef::deSerialize(std::istream &is, NodeDrawType drawtype, u16 protocol_version)
+void TileDef::deSerialize(std::istream &is, u8 contentfeatures_version,
+	NodeDrawType drawtype)
 {
-	if (readU8(is) < 6)
+	int version = readU8(is);
+	if (version < 6)
 		throw SerializationError("unsupported TileDef version");
-
 	name = deSerializeString16(is);
-	animation.deSerialize(is, protocol_version);
+	animation.deSerialize(is, version);
 	u16 flags = readU16(is);
 	backface_culling = flags & TILE_FLAG_BACKFACE_CULLING;
 	tileable_horizontal = flags & TILE_FLAG_TILEABLE_HORIZONTAL;
@@ -279,7 +291,7 @@ void TextureSettings::readSettings()
 	bool smooth_lighting           = g_settings->getBool("smooth_lighting");
 	enable_mesh_cache              = g_settings->getBool("enable_mesh_cache");
 	enable_minimap                 = g_settings->getBool("enable_minimap");
-	node_texture_size              = std::min<u16>(g_settings->getU16("texture_min_size"), 1);
+	node_texture_size              = g_settings->getU16("texture_min_size");
 	std::string leaves_style_str   = g_settings->get("leaves_style");
 	std::string world_aligned_mode_str = g_settings->get("world_aligned_mode");
 	std::string autoscale_mode_str = g_settings->get("autoscale_mode");
@@ -397,9 +409,9 @@ void ContentFeatures::reset()
 	drowning = 0;
 	light_source = 0;
 	damage_per_second = 0;
-	node_box.reset();
-	selection_box.reset();
-	collision_box.reset();
+	node_box = NodeBox();
+	selection_box = NodeBox();
+	collision_box = NodeBox();
 	waving = 0;
 	legacy_facedir_simple = false;
 	legacy_wallmounted = false;
@@ -444,7 +456,8 @@ u8 ContentFeatures::getAlphaForLegacy() const
 
 void ContentFeatures::serialize(std::ostream &os, u16 protocol_version) const
 {
-	writeU8(os, CONTENTFEATURES_VERSION);
+	const u8 version = CONTENTFEATURES_VERSION;
+	writeU8(os, version);
 
 	// general
 	os << serializeString16(name);
@@ -529,9 +542,9 @@ void ContentFeatures::serialize(std::ostream &os, u16 protocol_version) const
 	collision_box.serialize(os, protocol_version);
 
 	// sound
-	sound_footstep.serialize(os, protocol_version);
-	sound_dig.serialize(os, protocol_version);
-	sound_dug.serialize(os, protocol_version);
+	sound_footstep.serialize(os, version);
+	sound_dig.serialize(os, version);
+	sound_dug.serialize(os, version);
 
 	// legacy
 	writeU8(os, legacy_facedir_simple);
@@ -545,9 +558,11 @@ void ContentFeatures::serialize(std::ostream &os, u16 protocol_version) const
 	writeU8(os, liquid_move_physics);
 }
 
-void ContentFeatures::deSerialize(std::istream &is, u16 protocol_version)
+void ContentFeatures::deSerialize(std::istream &is)
 {
-	if (readU8(is) < CONTENTFEATURES_VERSION)
+	// version detection
+	const u8 version = readU8(is);
+	if (version < CONTENTFEATURES_VERSION)
 		throw SerializationError("unsupported ContentFeatures version");
 
 	// general
@@ -569,13 +584,13 @@ void ContentFeatures::deSerialize(std::istream &is, u16 protocol_version)
 	if (readU8(is) != 6)
 		throw SerializationError("unsupported tile count");
 	for (TileDef &td : tiledef)
-		td.deSerialize(is, drawtype, protocol_version);
+		td.deSerialize(is, version, drawtype);
 	for (TileDef &td : tiledef_overlay)
-		td.deSerialize(is, drawtype, protocol_version);
+		td.deSerialize(is, version, drawtype);
 	if (readU8(is) != CF_SPECIAL_COUNT)
 		throw SerializationError("unsupported CF_SPECIAL_COUNT");
 	for (TileDef &td : tiledef_special)
-		td.deSerialize(is, drawtype, protocol_version);
+		td.deSerialize(is, version, drawtype);
 	setAlphaFromLegacy(readU8(is));
 	color.setRed(readU8(is));
 	color.setGreen(readU8(is));
@@ -626,9 +641,9 @@ void ContentFeatures::deSerialize(std::istream &is, u16 protocol_version)
 	collision_box.deSerialize(is);
 
 	// sounds
-	sound_footstep.deSerialize(is, protocol_version);
-	sound_dig.deSerialize(is, protocol_version);
-	sound_dug.deSerialize(is, protocol_version);
+	sound_footstep.deSerialize(is, version);
+	sound_dig.deSerialize(is, version);
+	sound_dug.deSerialize(is, version);
 
 	// read legacy properties
 	legacy_facedir_simple = readU8(is);
@@ -894,15 +909,8 @@ void ContentFeatures::updateTextures(ITextureSource *tsrc, IShaderSource *shdsrc
 			solidness = 0;
 			visual_solidness = 1;
 		} else {
-			if (waving >= 1) {
-				// waving nodes must make faces so there are no gaps
-				drawtype = NDT_ALLFACES;
-				solidness = 0;
-				visual_solidness = 1;
-			} else {
-				drawtype = NDT_NORMAL;
-				solidness = 2;
-			}
+			drawtype = NDT_NORMAL;
+			solidness = 2;
 			for (TileDef &td : tdef)
 				td.name += std::string("^[noalpha");
 		}
@@ -1083,8 +1091,10 @@ void NodeDefManager::clear()
 	{
 		ContentFeatures f;
 		f.name = "unknown";
+		TileDef unknownTile;
+		unknownTile.name = "unknown_node.png";
 		for (int t = 0; t < 6; t++)
-			f.tiledef[t].name = "unknown_node.png";
+			f.tiledef[t] = unknownTile;
 		// Insert directly into containers
 		content_t c = CONTENT_UNKNOWN;
 		m_content_features[c] = f;
@@ -1286,23 +1296,22 @@ void getNodeBoxUnion(const NodeBox &nodebox, const ContentFeatures &features,
 			break;
 		}
 		case NODEBOX_CONNECTED: {
-			const auto &c = nodebox.getConnected();
 			// Add all possible connected boxes
-			boxVectorUnion(nodebox.fixed,         box_union);
-			boxVectorUnion(c.connect_top,         box_union);
-			boxVectorUnion(c.connect_bottom,      box_union);
-			boxVectorUnion(c.connect_front,       box_union);
-			boxVectorUnion(c.connect_left,        box_union);
-			boxVectorUnion(c.connect_back,        box_union);
-			boxVectorUnion(c.connect_right,       box_union);
-			boxVectorUnion(c.disconnected_top,    box_union);
-			boxVectorUnion(c.disconnected_bottom, box_union);
-			boxVectorUnion(c.disconnected_front,  box_union);
-			boxVectorUnion(c.disconnected_left,   box_union);
-			boxVectorUnion(c.disconnected_back,   box_union);
-			boxVectorUnion(c.disconnected_right,  box_union);
-			boxVectorUnion(c.disconnected,        box_union);
-			boxVectorUnion(c.disconnected_sides,  box_union);
+			boxVectorUnion(nodebox.fixed,               box_union);
+			boxVectorUnion(nodebox.connect_top,         box_union);
+			boxVectorUnion(nodebox.connect_bottom,      box_union);
+			boxVectorUnion(nodebox.connect_front,       box_union);
+			boxVectorUnion(nodebox.connect_left,        box_union);
+			boxVectorUnion(nodebox.connect_back,        box_union);
+			boxVectorUnion(nodebox.connect_right,       box_union);
+			boxVectorUnion(nodebox.disconnected_top,    box_union);
+			boxVectorUnion(nodebox.disconnected_bottom, box_union);
+			boxVectorUnion(nodebox.disconnected_front,  box_union);
+			boxVectorUnion(nodebox.disconnected_left,   box_union);
+			boxVectorUnion(nodebox.disconnected_back,   box_union);
+			boxVectorUnion(nodebox.disconnected_right,  box_union);
+			boxVectorUnion(nodebox.disconnected,        box_union);
+			boxVectorUnion(nodebox.disconnected_sides,  box_union);
 			break;
 		}
 		default: {
@@ -1539,13 +1548,12 @@ void NodeDefManager::serialize(std::ostream &os, u16 protocol_version) const
 }
 
 
-void NodeDefManager::deSerialize(std::istream &is, u16 protocol_version)
+void NodeDefManager::deSerialize(std::istream &is)
 {
 	clear();
-
-	if (readU8(is) < 1)
+	int version = readU8(is);
+	if (version != 1)
 		throw SerializationError("unsupported NodeDefinitionManager version");
-
 	u16 count = readU16(is);
 	std::istringstream is2(deSerializeString32(is), std::ios::binary);
 	ContentFeatures f;
@@ -1555,7 +1563,7 @@ void NodeDefManager::deSerialize(std::istream &is, u16 protocol_version)
 		// Read it from the string wrapper
 		std::string wrapper = deSerializeString16(is2);
 		std::istringstream wrapper_is(wrapper, std::ios::binary);
-		f.deSerialize(wrapper_is, protocol_version);
+		f.deSerialize(wrapper_is);
 
 		// Check error conditions
 		if (i == CONTENT_IGNORE || i == CONTENT_AIR || i == CONTENT_UNKNOWN) {

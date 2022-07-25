@@ -21,7 +21,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "guiButton.h"
 #include "IGUIButton.h"
-#include "guiAnimatedImage.h"
 
 using namespace irr;
 
@@ -33,11 +32,12 @@ public:
 			s32 id, core::rect<s32> rectangle, ISimpleTextureSource *tsrc,
 			bool noclip = false);
 
-	void setForegroundImage(video::ITexture *image = nullptr,
-			const core::rect<s32> &middle = core::rect<s32>());
+	void setForegroundImage(video::ITexture *image = nullptr);
 
 	//! Set element properties from a StyleSpec
-	virtual void setFromStyle(const StyleSpec &style) override;
+	virtual void setFromStyle(const StyleSpec& style) override;
+
+	virtual void setScaleImage(bool scaleImage=true) override;
 
 	//! Do not drop returned handle
 	static GUIButtonImage *addButton(gui::IGUIEnvironment *environment,
@@ -47,5 +47,5 @@ public:
 
 private:
 	video::ITexture *m_foreground_image = nullptr;
-	GUIAnimatedImage *m_image;
+	gui::IGUIImage *m_image;
 };

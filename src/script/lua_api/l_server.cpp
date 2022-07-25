@@ -437,15 +437,16 @@ int ModApiServer::l_get_worldpath(lua_State *L)
 int ModApiServer::l_sound_play(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-	ServerPlayingSound params;
-	read_soundspec(L, 1, params.spec);
+	SimpleSoundSpec spec;
+	read_soundspec(L, 1, spec);
+	ServerSoundParams params;
 	read_server_sound_params(L, 2, params);
 	bool ephemeral = lua_gettop(L) > 2 && readParam<bool>(L, 3);
 	if (ephemeral) {
-		getServer(L)->playSound(params, true);
+		getServer(L)->playSound(spec, params, true);
 		lua_pushnil(L);
 	} else {
-		s32 handle = getServer(L)->playSound(params);
+		s32 handle = getServer(L)->playSound(spec, params);
 		lua_pushinteger(L, handle);
 	}
 	return 1;

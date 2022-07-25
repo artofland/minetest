@@ -143,6 +143,24 @@ void ClientMap::OnRegisterSceneNode()
 	{
 		SceneManager->registerNodeForRendering(this, scene::ESNRP_SOLID);
 		SceneManager->registerNodeForRendering(this, scene::ESNRP_TRANSPARENT);
+
+		// Prepare meshes
+		video::IVideoDriver* driver = SceneManager->getVideoDriver();
+		for (auto &i : m_drawlist) {
+			MapBlock *block = i.second;
+			MapBlockMesh *mapBlockMesh = block->mesh;
+			if (!mapBlockMesh)
+				continue;
+			for (int layer = 0; layer < MAX_TILE_LAYERS; layer++) {
+				scene::IMesh *mesh = mapBlockMesh->getMesh(layer);
+				assert(mesh);
+				u32 c = mesh->getMeshBufferCount();
+				for (u32 i = 0; i < c; i++) {
+					scene::IMeshBuffer *buf = mesh->getMeshBuffer(i);
+					driver->prepareMeshBuffer(buf);
+				}
+			}
+		}
 	}
 
 	ISceneNode::OnRegisterSceneNode();
@@ -219,11 +237,13 @@ void ClientMap::updateDrawList()
 	// Number of blocks occlusion culled
 	u32 blocks_occlusion_culled = 0;
 
-	// No occlusion culling when free_move is on and camera is inside ground
+	// No occlusion culling when free_move is on and camera is
+	// inside ground
 	bool occlusion_culling_enabled = true;
-	if (m_control.allow_noclip) {
+	if (g_settings->getBool("free_move") && g_settings->getBool("noclip")) {
 		MapNode n = getNode(cam_pos_nodes);
-		if (n.getContent() == CONTENT_IGNORE || m_nodedef->get(n).solidness == 2)
+		if (n.getContent() == CONTENT_IGNORE ||
+				m_nodedef->get(n).solidness == 2)
 			occlusion_culling_enabled = false;
 	}
 
@@ -472,7 +492,7 @@ void ClientMap::renderMap(video::IVideoDriver* driver, s32 pass)
 			// pass the shadow map texture to the buffer texture
 			ShadowRenderer *shadow = m_rendering_engine->get_shadow_renderer();
 			if (shadow && shadow->is_active()) {
-				auto &layer = material.TextureLayer[ShadowRenderer::TEXTURE_LAYER_SHADOW];
+				auto &layer = material.TextureLayer[3];
 				layer.Texture = shadow->get_texture();
 				layer.TextureWrapU = video::E_TEXTURE_CLAMP::ETC_CLAMP_TO_EDGE;
 				layer.TextureWrapV = video::E_TEXTURE_CLAMP::ETC_CLAMP_TO_EDGE;
@@ -485,7 +505,6 @@ void ClientMap::renderMap(video::IVideoDriver* driver, s32 pass)
 			}
 			driver->setMaterial(material);
 			++material_swaps;
-			material.TextureLayer[ShadowRenderer::TEXTURE_LAYER_SHADOW].Texture = nullptr;
 		}
 
 		v3f block_wpos = intToFloat(descriptor.m_pos * MAP_BLOCKSIZE, BS);
@@ -677,17 +696,19 @@ void ClientMap::renderPostFx(CameraMode cam_mode)
 
 	MapNode n = getNode(floatToInt(m_camera_position, BS));
 
+	// - If the player is in a solid node, make everything black.
+	// - If the player is in liquid, draw a semi-transparent overlay.
+	// - Do not if player is in third person mode
 	const ContentFeatures& features = m_nodedef->get(n);
 	video::SColor post_effect_color = features.post_effect_color;
-
-	// If the camera is in a solid node, make everything black.
-	// (first person mode only)
-	if (features.solidness == 2 && cam_mode == CAMERA_MODE_FIRST &&
-		!m_control.allow_noclip) {
+	if(features.solidness == 2 && !(g_settings->getBool("noclip") &&
+			m_client->checkLocalPrivilege("noclip")) &&
+			cam_mode == CAMERA_MODE_FIRST)
+	{
 		post_effect_color = video::SColor(255, 0, 0, 0);
 	}
-
-	if (post_effect_color.getAlpha() != 0) {
+	if (post_effect_color.getAlpha() != 0)
+	{
 		// Draw a full-screen rectangle
 		video::IVideoDriver* driver = SceneManager->getVideoDriver();
 		v2u32 ss = driver->getScreenSize();

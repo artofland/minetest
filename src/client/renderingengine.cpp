@@ -38,7 +38,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #if !defined(_WIN32) && !defined(__APPLE__) && !defined(__ANDROID__) && \
 		!defined(SERVER) && !defined(__HAIKU__)
-#define XORG_USED
+//#define XORG_USED
 #endif
 #ifdef XORG_USED
 #include <X11/Xlib.h>
@@ -86,8 +86,8 @@ RenderingEngine::RenderingEngine(IEventReceiver *receiver)
 
 	// Resolution selection
 	bool fullscreen = g_settings->getBool("fullscreen");
-	u16 screen_w = std::max<u16>(g_settings->getU16("screen_w"), 1);
-	u16 screen_h = std::max<u16>(g_settings->getU16("screen_h"), 1);
+	u16 screen_w = g_settings->getU16("screen_w");
+	u16 screen_h = g_settings->getU16("screen_h");
 
 	// bpp, fsaa, vsync
 	bool vsync = g_settings->getBool("vsync");
@@ -286,6 +286,7 @@ static bool getWindowHandle(irr::video::IVideoDriver *driver, HWND &hWnd)
 #if ENABLE_GLES
 	case video::EDT_OGLES1:
 	case video::EDT_OGLES2:
+	case video::EDT_WEBGL1:
 #endif
 	case video::EDT_OPENGL:
 		hWnd = reinterpret_cast<HWND>(exposedData.OpenGLWin32.HWnd);
@@ -520,15 +521,16 @@ std::vector<irr::video::E_DRIVER_TYPE> RenderingEngine::getSupportedVideoDrivers
 {
 	// Only check these drivers.
 	// We do not support software and D3D in any capacity.
-	static const irr::video::E_DRIVER_TYPE glDrivers[4] = {
+	static const irr::video::E_DRIVER_TYPE glDrivers[5] = {
 		irr::video::EDT_NULL,
 		irr::video::EDT_OPENGL,
 		irr::video::EDT_OGLES1,
 		irr::video::EDT_OGLES2,
+                irr::video::EDT_WEBGL1,
 	};
 	std::vector<irr::video::E_DRIVER_TYPE> drivers;
 
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 5; i++) {
 		if (irr::IrrlichtDevice::isDriverSupported(glDrivers[i]))
 			drivers.push_back(glDrivers[i]);
 	}
@@ -561,6 +563,7 @@ const VideoDriverInfo &RenderingEngine::getVideoDriverInfo(irr::video::E_DRIVER_
 		{(int)video::EDT_OPENGL, {"opengl", "OpenGL"}},
 		{(int)video::EDT_OGLES1, {"ogles1", "OpenGL ES1"}},
 		{(int)video::EDT_OGLES2, {"ogles2", "OpenGL ES2"}},
+                {(int)video::EDT_WEBGL1, {"webgl1", "WebGL 1"}},
 	};
 	return driver_info_map.at((int)type);
 }
@@ -598,7 +601,7 @@ static float calcDisplayDensity()
 float RenderingEngine::getDisplayDensity()
 {
 	static float cached_display_density = calcDisplayDensity();
-	return std::max(cached_display_density * g_settings->getFloat("display_density_factor"), 0.5f);
+	return cached_display_density * g_settings->getFloat("display_density_factor");
 }
 
 #elif defined(_WIN32)
@@ -626,18 +629,28 @@ float RenderingEngine::getDisplayDensity()
 		display_density = calcDisplayDensity(get_video_driver());
 		cached = true;
 	}
-	return std::max(display_density * g_settings->getFloat("display_density_factor"), 0.5f);
+	return display_density * g_settings->getFloat("display_density_factor");
 }
 
 #else
 
 float RenderingEngine::getDisplayDensity()
 {
-	return std::max(g_settings->getFloat("screen_dpi") / 96.0f *
-		g_settings->getFloat("display_density_factor"), 0.5f);
+	return (g_settings->getFloat("screen_dpi") / 96.0) * g_settings->getFloat("display_density_factor");
 }
 
 #endif
+
+v2u32 RenderingEngine::getDisplaySize()
+{
+	IrrlichtDevice *nulldevice = createDevice(video::EDT_NULL);
+
+	core::dimension2d<u32> deskres =
+			nulldevice->getVideoModeList()->getDesktopResolution();
+	nulldevice->drop();
+
+	return deskres;
+}
 
 #else // __ANDROID__
 float RenderingEngine::getDisplayDensity()
@@ -645,4 +658,8 @@ float RenderingEngine::getDisplayDensity()
 	return porting::getDisplayDensity();
 }
 
+v2u32 RenderingEngine::getDisplaySize()
+{
+	return porting::getDisplaySize();
+}
 #endif // __ANDROID__

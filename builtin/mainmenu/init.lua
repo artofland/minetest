@@ -17,11 +17,9 @@
 
 mt_color_grey  = "#AAAAAA"
 mt_color_blue  = "#6389FF"
-mt_color_lightblue  = "#99CCFF"
 mt_color_green = "#72FF63"
 mt_color_dark_green = "#25C191"
 mt_color_orange  = "#FF8800"
-mt_color_red = "#FF3300"
 
 local menupath = core.get_mainmenu_path()
 local basepath = core.get_builtin_path()
@@ -45,7 +43,6 @@ dofile(menupath .. DIR_DELIM .. "dlg_contentstore.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_create_world.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_delete_content.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_delete_world.lua")
-dofile(menupath .. DIR_DELIM .. "dlg_register.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_rename_modpack.lua")
 
 local tabs = {}
@@ -95,11 +92,11 @@ local function init_globals()
 	-- Create main tabview
 	local tv_main = tabview_create("maintab", {x = 12, y = 5.4}, {x = 0, y = 0})
 
-	tv_main:set_autosave_tab(false)
-	-- tv_main:add(tabs.local_game)
+	tv_main:set_autosave_tab(true)
+	tv_main:add(tabs.local_game)
 	tv_main:add(tabs.play_online)
 
-	-- tv_main:add(tabs.content)
+	tv_main:add(tabs.content)
 	tv_main:add(tabs.settings)
 	tv_main:add(tabs.about)
 

@@ -35,7 +35,7 @@ void set_default_settings()
 	settings->setDefault("language", "");
 	settings->setDefault("name", "");
 	settings->setDefault("bind_address", "");
-	settings->setDefault("serverlist_url", "servers.artof.land");
+	settings->setDefault("serverlist_url", "servers.minetest.net");
 
 	// Client
 	settings->setDefault("address", "");
@@ -64,7 +64,7 @@ void set_default_settings()
 	settings->setDefault("enable_client_modding", "false");
 	settings->setDefault("max_out_chat_queue_size", "20");
 	settings->setDefault("pause_on_lost_focus", "false");
-	settings->setDefault("enable_split_login_register", "true");
+	settings->setDefault("enable_register_confirmation", "true");
 	settings->setDefault("chat_weblink_color", "#8888FF");
 
 	// Keymap
@@ -192,6 +192,9 @@ void set_default_settings()
 	settings->setDefault("lighting_boost_spread", "0.2");
 	settings->setDefault("texture_path", "");
 	settings->setDefault("shader_path", "");
+#ifdef __EMSCRIPTEN__
+	settings->setDefault("video_driver", "webgl1");
+#else
 #if ENABLE_GLES
 #ifdef _IRR_COMPILE_WITH_OGLES1_
 	settings->setDefault("video_driver", "ogles1");
@@ -200,6 +203,8 @@ void set_default_settings()
 #endif
 #else
 	settings->setDefault("video_driver", "opengl");
+#endif
+
 #endif
 	settings->setDefault("cinematic", "false");
 	settings->setDefault("camera_smoothing", "0");
@@ -235,11 +240,7 @@ void set_default_settings()
 	settings->setDefault("texture_clean_transparent", "false");
 	settings->setDefault("texture_min_size", "64");
 	settings->setDefault("ambient_occlusion_gamma", "1.8");
-#if ENABLE_GLES
-	settings->setDefault("enable_shaders", "false");
-#else
 	settings->setDefault("enable_shaders", "true");
-#endif
 	settings->setDefault("enable_particles", "true");
 	settings->setDefault("arm_inertia", "true");
 	settings->setDefault("show_nametag_backgrounds", "true");
@@ -344,7 +345,7 @@ void set_default_settings()
 #endif
 
 	// Network
-	settings->setDefault("enable_ipv6", "true");
+	settings->setDefault("enable_ipv6", "false"); // TODO: enable this
 	settings->setDefault("ipv6_server", "false");
 	settings->setDefault("max_packets_per_iteration","1024");
 	settings->setDefault("port", "30000");
@@ -456,6 +457,7 @@ void set_default_settings()
 	// Altered settings for macOS
 #if defined(__MACH__) && defined(__APPLE__)
 	settings->setDefault("keymap_sneak", "KEY_SHIFT");
+	settings->setDefault("fps_max", "0");
 #endif
 
 #ifdef HAVE_TOUCHSCREENGUI
@@ -479,6 +481,7 @@ void set_default_settings()
 	settings->setDefault("emergequeue_limit_generate", "16");
 	settings->setDefault("max_block_generate_distance", "5");
 	settings->setDefault("enable_3d_clouds", "false");
+	settings->setDefault("fps_max", "30");
 	settings->setDefault("fps_max_unfocused", "10");
 	settings->setDefault("sqlite_synchronous", "1");
 	settings->setDefault("map_compression_level_disk", "-1");

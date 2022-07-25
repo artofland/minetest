@@ -191,7 +191,7 @@ end
 
 local function queue_download(package, reason)
 	local max_concurrent_downloads = tonumber(core.settings:get("contentdb_max_concurrent_downloads"))
-	if number_downloading < math.max(max_concurrent_downloads, 1) then
+	if number_downloading < max_concurrent_downloads then
 		start_install(package, reason)
 	else
 		table.insert(download_queue, { package = package, reason = reason })
@@ -488,10 +488,12 @@ local confirm_overwrite = {}
 function confirm_overwrite.get_formspec()
 	local package = confirm_overwrite.package
 
-	return confirmation_formspec(
-		fgettext("\"$1\" already exists. Would you like to overwrite it?", package.name),
-		'install', fgettext("Overwrite"),
-		'cancel', fgettext("Cancel"))
+	return "size[11.5,4.5,true]" ..
+			"label[2,2;" ..
+			fgettext("\"$1\" already exists. Would you like to overwrite it?", package.name) .. "]"..
+			"style[install;bgcolor=red]" ..
+			"button[3.25,3.5;2.5,0.5;install;" .. fgettext("Overwrite") .. "]" ..
+			"button[5.75,3.5;2.5,0.5;cancel;" .. fgettext("Cancel") .. "]"
 end
 
 function confirm_overwrite.handle_submit(this, fields)
@@ -575,7 +577,20 @@ local function get_screenshot(package)
 	return defaulttexturedir .. "loading_screenshot.png"
 end
 
-function store.load()
+function get_packages_full(url)
+	local http = core.get_http_api()
+	local response = http.fetch_sync({ url = url })
+	if not response.succeeded then
+		return {}
+	end
+	return core.parse_json(response.data) or {}
+end
+
+function store.load_async()
+	if store.loading then
+		return
+	end
+	store.loading = true
 	local version = core.get_version()
 	local base_url = core.settings:get("contentdb_url")
 	local url = base_url ..
@@ -588,13 +603,22 @@ function store.load()
 			url = url .. "&hide=" .. urlencode(item)
 		end
 	end
+	core.handle_async(
+		get_packages_full,
+		url,
+		function(result)
+			store.loading = nil
+			store.load(result)
+			store.update_paths()
+			store.sort_packages()
+			store.filter_packages(search_string)
+			core.event_handler("Refresh")
+		end
+	)
+end
 
-	local response = http.fetch_sync({ url = url })
-	if not response.succeeded then
-		return
-	end
-
-	store.packages_full = core.parse_json(response.data) or {}
+function store.load(packages_full)
+	store.packages_full = packages_full
 	store.aliases = {}
 
 	for _, package in pairs(store.packages_full) do
@@ -744,7 +768,7 @@ function store.get_formspec(dlgdata)
 	local W = 15.75
 	local H = 9.5
 	local formspec
-	if #store.packages_full > 0 then
+	if true then
 		formspec = {
 			"formspec_version[3]",
 			"size[15.75,9.5]",
@@ -806,8 +830,12 @@ function store.get_formspec(dlgdata)
 		end
 
 		if #store.packages == 0 then
+			local msg = "No results"
+			if #store.packages_full == 0 then
+				msg = "Loading...."
+			end
 			formspec[#formspec + 1] = "label[4,3;"
-			formspec[#formspec + 1] = fgettext("No results")
+			formspec[#formspec + 1] = fgettext(msg)
 			formspec[#formspec + 1] = "]"
 		end
 	else
@@ -1034,11 +1062,9 @@ end
 
 function create_store_dlg(type)
 	if not store.loaded or #store.packages_full == 0 then
-		store.load()
+		store.load_async()
 	end
 
-	store.update_paths()
-	store.sort_packages()
 
 	search_string = ""
 	cur_page = 1
@@ -1052,8 +1078,6 @@ function create_store_dlg(type)
 			end
 		end
 	end
-
-	store.filter_packages(search_string)
 
 	return dialog_create("store",
 			store.get_formspec,

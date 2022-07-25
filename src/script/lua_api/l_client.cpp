@@ -268,32 +268,30 @@ int ModApiClient::l_sound_play(lua_State *L)
 	SimpleSoundSpec spec;
 	read_soundspec(L, 1, spec);
 
-	SoundLocation type = SoundLocation::Local;
 	float gain = 1.0f;
-	v3f position;
+	float pitch = 1.0f;
+	bool looped = false;
+	s32 handle;
 
 	if (lua_istable(L, 2)) {
 		getfloatfield(L, 2, "gain", gain);
-		getfloatfield(L, 2, "pitch", spec.pitch);
-		getboolfield(L, 2, "loop", spec.loop);
+		getfloatfield(L, 2, "pitch", pitch);
+		getboolfield(L, 2, "loop", looped);
 
 		lua_getfield(L, 2, "pos");
 		if (!lua_isnil(L, -1)) {
-			position = read_v3f(L, -1) * BS;
-			type = SoundLocation::Position;
+			v3f pos = read_v3f(L, -1) * BS;
 			lua_pop(L, 1);
+			handle = sound->playSoundAt(
+					spec.name, looped, gain * spec.gain, pos, pitch);
+			lua_pushinteger(L, handle);
+			return 1;
 		}
 	}
 
-	spec.gain *= gain;
-
-	s32 handle;
-	if (type == SoundLocation::Local)
-		handle = sound->playSound(spec);
-	else
-		handle = sound->playSoundAt(spec, position);
-
+	handle = sound->playSound(spec.name, looped, gain * spec.gain, spec.fade, pitch);
 	lua_pushinteger(L, handle);
+
 	return 1;
 }
 

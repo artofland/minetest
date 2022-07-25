@@ -154,8 +154,8 @@ void ItemDefinition::serialize(std::ostream &os, u16 protocol_version) const
 	os << serializeString16(node_placement_prediction);
 
 	// Version from ContentFeatures::serialize to keep in sync
-	sound_place.serialize(os, protocol_version);
-	sound_place_failed.serialize(os, protocol_version);
+	sound_place.serialize(os, CONTENTFEATURES_VERSION);
+	sound_place_failed.serialize(os, CONTENTFEATURES_VERSION);
 
 	writeF32(os, range);
 	os << serializeString16(palette_image);
@@ -168,7 +168,7 @@ void ItemDefinition::serialize(std::ostream &os, u16 protocol_version) const
 	os << place_param2;
 }
 
-void ItemDefinition::deSerialize(std::istream &is, u16 protocol_version)
+void ItemDefinition::deSerialize(std::istream &is)
 {
 	// Reset everything
 	reset();
@@ -205,8 +205,9 @@ void ItemDefinition::deSerialize(std::istream &is, u16 protocol_version)
 
 	node_placement_prediction = deSerializeString16(is);
 
-	sound_place.deSerialize(is, protocol_version);
-	sound_place_failed.deSerialize(is, protocol_version);
+	// Version from ContentFeatures::serialize to keep in sync
+	sound_place.deSerialize(is, CONTENTFEATURES_VERSION);
+	sound_place_failed.deSerialize(is, CONTENTFEATURES_VERSION);
 
 	range = readF32(is);
 	palette_image = deSerializeString16(is);
@@ -537,21 +538,21 @@ public:
 			os << serializeString16(it.second);
 		}
 	}
-	void deSerialize(std::istream &is, u16 protocol_version)
+	void deSerialize(std::istream &is)
 	{
 		// Clear everything
 		clear();
-
-		if(readU8(is) != 0)
+		// Deserialize
+		int version = readU8(is);
+		if(version != 0)
 			throw SerializationError("unsupported ItemDefManager version");
-
 		u16 count = readU16(is);
 		for(u16 i=0; i<count; i++)
 		{
 			// Deserialize a string and grab an ItemDefinition from it
 			std::istringstream tmp_is(deSerializeString16(is), std::ios::binary);
 			ItemDefinition def;
-			def.deSerialize(tmp_is, protocol_version);
+			def.deSerialize(tmp_is);
 			// Register
 			registerItem(def);
 		}

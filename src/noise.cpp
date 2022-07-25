@@ -35,8 +35,16 @@
 #define NOISE_MAGIC_X    1619
 #define NOISE_MAGIC_Y    31337
 #define NOISE_MAGIC_Z    52591
-// Unsigned magic seed prevents undefined behavior.
-#define NOISE_MAGIC_SEED 1013U
+#define NOISE_MAGIC_SEED 1013
+
+typedef float (*Interp2dFxn)(
+		float v00, float v10, float v01, float v11,
+		float x, float y);
+
+typedef float (*Interp3dFxn)(
+		float v000, float v100, float v010, float v110,
+		float v001, float v101, float v011, float v111,
+		float x, float y, float z);
 
 FlagDesc flagdesc_noiseparams[] = {
 	{"defaults",    NOISE_FLAG_DEFAULTS},
@@ -189,34 +197,47 @@ inline float linearInterpolation(float v0, float v1, float t)
 inline float biLinearInterpolation(
 	float v00, float v10,
 	float v01, float v11,
-	float x, float y,
-	bool eased)
+	float x, float y)
 {
-	// Inlining will optimize this branch out when possible
-	if (eased) {
-		x = easeCurve(x);
-		y = easeCurve(y);
-	}
+	float tx = easeCurve(x);
+	float ty = easeCurve(y);
+	float u = linearInterpolation(v00, v10, tx);
+	float v = linearInterpolation(v01, v11, tx);
+	return linearInterpolation(u, v, ty);
+}
+
+
+inline float biLinearInterpolationNoEase(
+	float v00, float v10,
+	float v01, float v11,
+	float x, float y)
+{
 	float u = linearInterpolation(v00, v10, x);
 	float v = linearInterpolation(v01, v11, x);
 	return linearInterpolation(u, v, y);
 }
 
 
-inline float triLinearInterpolation(
+float triLinearInterpolation(
 	float v000, float v100, float v010, float v110,
 	float v001, float v101, float v011, float v111,
-	float x, float y, float z,
-	bool eased)
+	float x, float y, float z)
 {
-	// Inlining will optimize this branch out when possible
-	if (eased) {
-		x = easeCurve(x);
-		y = easeCurve(y);
-		z = easeCurve(z);
-	}
-	float u = biLinearInterpolation(v000, v100, v010, v110, x, y, false);
-	float v = biLinearInterpolation(v001, v101, v011, v111, x, y, false);
+	float tx = easeCurve(x);
+	float ty = easeCurve(y);
+	float tz = easeCurve(z);
+	float u = biLinearInterpolationNoEase(v000, v100, v010, v110, tx, ty);
+	float v = biLinearInterpolationNoEase(v001, v101, v011, v111, tx, ty);
+	return linearInterpolation(u, v, tz);
+}
+
+float triLinearInterpolationNoEase(
+	float v000, float v100, float v010, float v110,
+	float v001, float v101, float v011, float v111,
+	float x, float y, float z)
+{
+	float u = biLinearInterpolationNoEase(v000, v100, v010, v110, x, y);
+	float v = biLinearInterpolationNoEase(v001, v101, v011, v111, x, y);
 	return linearInterpolation(u, v, z);
 }
 
@@ -234,7 +255,10 @@ float noise2d_gradient(float x, float y, s32 seed, bool eased)
 	float v01 = noise2d(x0, y0+1, seed);
 	float v11 = noise2d(x0+1, y0+1, seed);
 	// Interpolate
-	return biLinearInterpolation(v00, v10, v01, v11, xl, yl, eased);
+	if (eased)
+		return biLinearInterpolation(v00, v10, v01, v11, xl, yl);
+
+	return biLinearInterpolationNoEase(v00, v10, v01, v11, xl, yl);
 }
 
 
@@ -258,11 +282,17 @@ float noise3d_gradient(float x, float y, float z, s32 seed, bool eased)
 	float v011 = noise3d(x0,     y0 + 1, z0 + 1, seed);
 	float v111 = noise3d(x0 + 1, y0 + 1, z0 + 1, seed);
 	// Interpolate
-	return triLinearInterpolation(
+	if (eased) {
+		return triLinearInterpolation(
+			v000, v100, v010, v110,
+			v001, v101, v011, v111,
+			xl, yl, zl);
+	}
+
+	return triLinearInterpolationNoEase(
 		v000, v100, v010, v110,
 		v001, v101, v011, v111,
-		xl, yl, zl,
-		eased);
+		xl, yl, zl);
 }
 
 
@@ -487,6 +517,9 @@ void Noise::gradientMap2D(
 	s32 x0, y0;
 
 	bool eased = np.flags & (NOISE_FLAG_DEFAULTS | NOISE_FLAG_EASED);
+	Interp2dFxn interpolate = eased ?
+		biLinearInterpolation : biLinearInterpolationNoEase;
+
 	x0 = std::floor(x);
 	y0 = std::floor(y);
 	u = x - (float)x0;
@@ -513,8 +546,7 @@ void Noise::gradientMap2D(
 		u = orig_u;
 		noisex = 0;
 		for (i = 0; i != sx; i++) {
-			gradient_buf[index++] =
-				biLinearInterpolation(v00, v10, v01, v11, u, v, eased);
+			gradient_buf[index++] = interpolate(v00, v10, v01, v11, u, v);
 
 			u += step_x;
 			if (u >= 1.0) {
@@ -550,7 +582,8 @@ void Noise::gradientMap3D(
 	u32 nlx, nly, nlz;
 	s32 x0, y0, z0;
 
-	bool eased = np.flags & NOISE_FLAG_EASED;
+	Interp3dFxn interpolate = (np.flags & NOISE_FLAG_EASED) ?
+		triLinearInterpolation : triLinearInterpolationNoEase;
 
 	x0 = std::floor(x);
 	y0 = std::floor(y);
@@ -591,11 +624,10 @@ void Noise::gradientMap3D(
 			u = orig_u;
 			noisex = 0;
 			for (i = 0; i != sx; i++) {
-				gradient_buf[index++] = triLinearInterpolation(
+				gradient_buf[index++] = interpolate(
 					v000, v100, v010, v110,
 					v001, v101, v011, v111,
-					u, v, w,
-					eased);
+					u, v, w);
 
 				u += step_x;
 				if (u >= 1.0) {

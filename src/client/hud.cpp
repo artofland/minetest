@@ -55,7 +55,7 @@ Hud::Hud(Client *client, LocalPlayer *player,
 	this->player      = player;
 	this->inventory   = inventory;
 
-	m_hud_scaling      = g_settings->getFloat("hud_scaling", 1.0f, 20.0f);
+	m_hud_scaling      = g_settings->getFloat("hud_scaling");
 	m_scale_factor     = m_hud_scaling * RenderingEngine::getDisplayDensity();
 	m_hotbar_imagesize = std::floor(HOTBAR_IMAGE_SIZE *
 		RenderingEngine::getDisplayDensity() + 0.5f);
@@ -1081,9 +1081,6 @@ void drawItemStack(
 		u32 mc = mesh->getMeshBufferCount();
 		for (u32 j = 0; j < mc; ++j) {
 			scene::IMeshBuffer *buf = mesh->getMeshBuffer(j);
-			// we can modify vertices relatively fast,
-			// because these meshes are not buffered.
-			assert(buf->getHardwareMappingHint_Vertex() == scene::EHM_NEVER);
 			video::SColor c = basecolor;
 
 			if (imesh->buffer_colors.size() > j) {
@@ -1100,6 +1097,7 @@ void drawItemStack(
 			video::SMaterial &material = buf->getMaterial();
 			material.MaterialType = video::EMT_TRANSPARENT_ALPHA_CHANNEL_REF;
 			material.Lighting = false;
+			buf->setDirty();
 			driver->setMaterial(material);
 			driver->drawMeshBuffer(buf);
 		}

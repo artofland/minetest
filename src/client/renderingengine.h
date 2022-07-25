@@ -55,6 +55,7 @@ public:
 
 	static const VideoDriverInfo &getVideoDriverInfo(irr::video::E_DRIVER_TYPE type);
 	static float getDisplayDensity();
+	static v2u32 getDisplaySize();
 
 	bool setupTopLevelWindow(const std::string &name);
 	void setupTopLevelXorgWindow(const std::string &name);

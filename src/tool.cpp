@@ -183,7 +183,7 @@ void ToolCapabilities::deserializeJson(std::istream &is)
 	}
 }
 
-u32 calculateResultWear(const u32 uses, const u16 initial_wear)
+static u32 calculateResultWear(const u32 uses, const u16 initial_wear)
 {
 	if (uses == 0) {
 		// Trivial case: Infinite uses

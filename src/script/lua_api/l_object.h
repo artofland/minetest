@@ -382,7 +382,4 @@ private:
 	
 	// get_lighting(self)
 	static int l_get_lighting(lua_State *L);
-
-	// respawn(self)
-	static int l_respawn(lua_State *L);
 };

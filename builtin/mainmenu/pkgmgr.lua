@@ -337,7 +337,7 @@ function pkgmgr.identify_modname(modpath,filename)
 	return nil
 end
 --------------------------------------------------------------------------------
-function pkgmgr.render_packagelist(render_list, use_technical_names, with_error)
+function pkgmgr.render_packagelist(render_list, use_technical_names)
 	if not render_list then
 		if not pkgmgr.global_mods then
 			pkgmgr.refresh_globals()
@@ -349,57 +349,22 @@ function pkgmgr.render_packagelist(render_list, use_technical_names, with_error)
 	local retval = {}
 	for i, v in ipairs(list) do
 		local color = ""
-		local icon = 0
-		local error = with_error and with_error[v.virtual_path]
-		local function update_error(val)
-			if val and (not error or (error.type == "warning" and val.type == "error")) then
-				error = val
-			end
-		end
-
 		if v.is_modpack then
 			local rawlist = render_list:get_raw_list()
 			color = mt_color_dark_green
 
-			for j = 1, #rawlist do
-				if rawlist[j].modpack == list[i].name then
-					if with_error then
-						update_error(with_error[rawlist[j].virtual_path])
-					end
-
-					if rawlist[j].enabled then
-						icon = 1
-					else
-						-- Modpack not entirely enabled so showing as grey
-						color = mt_color_grey
-					end
+			for j = 1, #rawlist, 1 do
+				if rawlist[j].modpack == list[i].name and
+						not rawlist[j].enabled then
+					-- Modpack not entirely enabled so showing as grey
+					color = mt_color_grey
+					break
 				end
 			end
 		elseif v.is_game_content or v.type == "game" then
-			icon = 1
 			color = mt_color_blue
-
-			local rawlist = render_list:get_raw_list()
-			if v.type == "game" and with_error then
-				for j = 1, #rawlist do
-					if rawlist[j].is_game_content then
-						update_error(with_error[rawlist[j].virtual_path])
-					end
-				end
-			end
 		elseif v.enabled or v.type == "txp" then
-			icon = 1
 			color = mt_color_green
-		end
-
-		if error then
-			if error.type == "warning" then
-				color = mt_color_orange
-				icon = 2
-			else
-				color = mt_color_red
-				icon = 3
-			end
 		end
 
 		retval[#retval + 1] = color
@@ -407,10 +372,6 @@ function pkgmgr.render_packagelist(render_list, use_technical_names, with_error)
 			retval[#retval + 1] = "1"
 		else
 			retval[#retval + 1] = "0"
-		end
-
-		if with_error then
-			retval[#retval + 1] = icon
 		end
 
 		if use_technical_names then
@@ -542,7 +503,7 @@ function pkgmgr.enable_mod(this, toset)
 			if not mod_to_enable then
 				core.log("warning", "Mod dependency \"" .. name ..
 					"\" not found!")
-			elseif not mod_to_enable.is_game_content then
+			else
 				if not mod_to_enable.enabled then
 					mod_to_enable.enabled = true
 					toggled_mods[#toggled_mods+1] = mod_to_enable.name

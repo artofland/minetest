@@ -258,23 +258,23 @@ void LBMManager::applyLBMs(ServerEnvironment *env, MapBlock *block, u32 stamp)
 	v3s16 pos;
 	MapNode n;
 	content_t c;
-	bool pos_valid; // dummy, we know it's valid
-	auto it = getLBMsIntroducedAfter(stamp);
+	lbm_lookup_map::const_iterator it = getLBMsIntroducedAfter(stamp);
 	for (; it != m_lbm_lookup.end(); ++it) {
 		// Cache previous version to speedup lookup which has a very high performance
 		// penalty on each call
-		content_t previous_c = CONTENT_IGNORE;
-		const std::vector<LoadingBlockModifierDef *> *lbm_list = nullptr;
+		content_t previous_c{};
+		std::vector<LoadingBlockModifierDef *> *lbm_list = nullptr;
 
 		for (pos.X = 0; pos.X < MAP_BLOCKSIZE; pos.X++)
 			for (pos.Y = 0; pos.Y < MAP_BLOCKSIZE; pos.Y++)
 				for (pos.Z = 0; pos.Z < MAP_BLOCKSIZE; pos.Z++) {
-					n = block->getNodeNoCheck(pos, &pos_valid);
+					n = block->getNodeNoEx(pos);
 					c = n.getContent();
 
 					// If content_t are not matching perform an LBM lookup
 					if (previous_c != c) {
-						lbm_list = it->second.lookup(c);
+						lbm_list = (std::vector<LoadingBlockModifierDef *> *)
+							it->second.lookup(c);
 						previous_c = c;
 					}
 
@@ -378,7 +378,10 @@ void ActiveBlockList::update(std::vector<PlayerSAO*> &active_players,
 	/*
 		Update m_list
 	*/
-	m_list = std::move(newlist);
+	m_list.clear();
+	for (v3s16 p : newlist) {
+		m_list.insert(p);
+	}
 }
 
 /*
@@ -622,9 +625,6 @@ PlayerSAO *ServerEnvironment::loadPlayer(RemotePlayer *player, bool *new_player,
 
 	/* Add object to environment */
 	addActiveObject(playersao);
-
-	// Update active blocks asap so objects in those blocks appear on the client
-	m_force_update_active_blocks = true;
 
 	return playersao;
 }
@@ -1332,16 +1332,13 @@ void ServerEnvironment::step(float dtime)
 	/*
 		Manage active block list
 	*/
-	if (m_active_blocks_mgmt_interval.step(dtime, m_cache_active_block_mgmt_interval) ||
-		m_force_update_active_blocks) {
+	if (m_active_blocks_management_interval.step(dtime, m_cache_active_block_mgmt_interval)) {
 		ScopeProfiler sp(g_profiler, "ServerEnv: update active blocks", SPT_AVG);
-
 		/*
 			Get player block positions
 		*/
 		std::vector<PlayerSAO*> players;
-		players.reserve(m_players.size());
-		for (RemotePlayer *player : m_players) {
+		for (RemotePlayer *player: m_players) {
 			// Ignore disconnected players
 			if (player->getPeerId() == PEER_ID_INEXISTENT)
 				continue;
@@ -1366,6 +1363,8 @@ void ServerEnvironment::step(float dtime)
 		m_active_blocks.update(players, active_block_range, active_object_range,
 			blocks_removed, blocks_added);
 
+		m_active_block_gauge->set(m_active_blocks.size());
+
 		/*
 			Handle removed blocks
 		*/
@@ -1389,21 +1388,14 @@ void ServerEnvironment::step(float dtime)
 		for (const v3s16 &p: blocks_added) {
 			MapBlock *block = m_map->getBlockOrEmerge(p);
 			if (!block) {
-				// TODO: The blocks removed here will only be picked up again
-				// on the next cycle. To minimize the latency of objects being
-				// activated we could remember the blocks pending activating
-				// and activate them instantly as soon as they're loaded.
-				m_active_blocks.remove(p);
+				m_active_blocks.m_list.erase(p);
+				m_active_blocks.m_abm_list.erase(p);
 				continue;
 			}
 
 			activateBlock(block);
 		}
-
-		// Some blocks may be removed again by the code above so do this here
-		m_active_block_gauge->set(m_active_blocks.size());
 	}
-	m_force_update_active_blocks = false;
 
 	/*
 		Mess around in active blocks

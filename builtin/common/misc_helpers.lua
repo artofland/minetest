@@ -204,7 +204,7 @@ end
 
 --------------------------------------------------------------------------------
 function string:trim()
-	return self:match("^%s*(.-)%s*$")
+	return (self:gsub("^%s*(.-)%s*$", "%1"))
 end
 
 --------------------------------------------------------------------------------
@@ -245,16 +245,16 @@ function math.round(x)
 	return math.ceil(x - 0.5)
 end
 
-local formspec_escapes = {
-	["\\"] = "\\\\",
-	["["] = "\\[",
-	["]"] = "\\]",
-	[";"] = "\\;",
-	[","] = "\\,"
-}
+
 function core.formspec_escape(text)
-	-- Use explicit character set instead of dot here because it doubles the performance
-	return text and string.gsub(text, "[\\%[%];,]", formspec_escapes)
+	if text ~= nil then
+		text = string.gsub(text,"\\","\\\\")
+		text = string.gsub(text,"%]","\\]")
+		text = string.gsub(text,"%[","\\[")
+		text = string.gsub(text,";","\\;")
+		text = string.gsub(text,",","\\,")
+	end
+	return text
 end
 
 
@@ -265,21 +265,18 @@ function core.wrap_text(text, max_length, as_table)
 		return as_table and {text} or text
 	end
 
-	local line_length = 0
-	for word in text:gmatch("%S+") do
-		if line_length > 0 and line_length + #word + 1 >= max_length then
+	for word in text:gmatch('%S+') do
+		local cur_length = #table.concat(line, ' ')
+		if cur_length > 0 and cur_length + #word + 1 >= max_length then
 			-- word wouldn't fit on current line, move to next line
-			table.insert(result, table.concat(line, " "))
-			line = {word}
-			line_length = #word
-		else
-			table.insert(line, word)
-			line_length = line_length + 1 + #word
+			table.insert(result, table.concat(line, ' '))
+			line = {}
 		end
+		table.insert(line, word)
 	end
 
-	table.insert(result, table.concat(line, " "))
-	return as_table and result or table.concat(result, "\n")
+	table.insert(result, table.concat(line, ' '))
+	return as_table and result or table.concat(result, '\n')
 end
 
 --------------------------------------------------------------------------------

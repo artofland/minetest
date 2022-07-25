@@ -134,12 +134,12 @@ public:
 			std::vector<CollisionInfo> *collision_info)
 	{}
 
-	v3f getSpeed() const
+	const v3f &getSpeed() const
 	{
 		return m_speed;
 	}
 
-	void setSpeed(v3f speed)
+	void setSpeed(const v3f &speed)
 	{
 		m_speed = speed;
 	}
