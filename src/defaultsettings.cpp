@@ -35,7 +35,7 @@ void set_default_settings()
 	settings->setDefault("language", "");
 	settings->setDefault("name", "");
 	settings->setDefault("bind_address", "");
-	settings->setDefault("serverlist_url", "servers.artof.land");
+	settings->setDefault("serverlist_url", "https://servers.artof.land");
 
 	// Client
 	settings->setDefault("address", "");

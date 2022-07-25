@@ -102,9 +102,9 @@ local function get_formspec(tabview, name, tabdata)
 		-- Connect
 		"button[3,6;2.5,0.75;btn_mp_login;" .. fgettext("Login") .. "]"
 
-	if core.settings:get_bool("enable_split_login_register") then
-		retval = retval .. "button[0.25,6;2.5,0.75;register;" .. fgettext("Register") .. "]"
-	end
+	-- if core.settings:get_bool("enable_split_login_register") then
+	-- end
+	retval = retval .. "button[0.25,6;2.5,0.75;register;" .. fgettext("Register") .. "]"
 
 	if tabdata.selected then
 		if gamedata.fav then
@@ -358,7 +358,8 @@ local function main_button_handler(tabview, fields, name, tabdata)
 		gamedata.address    = fields.te_address
 		gamedata.port       = tonumber(fields.te_port)
 
-		local enable_split_login_register = core.settings:get_bool("enable_split_login_register")
+		-- local enable_split_login_register = core.settings:get_bool("enable_split_login_register")
+		local enable_split_login_register = true
 		gamedata.allow_login_or_register = enable_split_login_register and "login" or "any"
 		gamedata.selected_world = 0
 
